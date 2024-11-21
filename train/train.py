@@ -96,12 +96,15 @@ def train(args, logger):
             raise ImportError("Make sure to install wandb if you want to use it for logging during training.")
 
     # Make one log on every process with the configuration for debugging.
+    # Python 内置的日志系统，主要用于打印日志信息
     logging.basicConfig(
         format="%(asctime)s - %(levelname)s - %(name)s - %(message)s",
         datefmt="%m/%d/%Y %H:%M:%S",
         level=logging.INFO,
     )
+    #  输出 accelerator 状态（所有进程都会输出）
     logger.info(accelerator.state, main_process_only=False)
+    # 根据进程类型设置不同的日志级别
     if accelerator.is_local_main_process:
         transformers.utils.logging.set_verbosity_warning()
         diffusers.utils.logging.set_verbosity_info()
@@ -130,6 +133,7 @@ def train(args, logger):
         weight_dtype = torch.float16
     elif accelerator.mixed_precision == "bf16":
         weight_dtype = torch.bfloat16
+    
     
     if args.precomp_lang_embed:
         tokenizer, text_encoder = None, None
@@ -326,6 +330,7 @@ def train(args, logger):
     # We need to initialize the trackers we use, and also store our configuration.
     # The trackers initializes automatically on the main process.
     if accelerator.is_main_process:
+        # vars(args) 是一个 Python 内置函数，用于获取对象的所有属性和值作为字典
         accelerator.init_trackers("roboticDiffusionTransformer", config=vars(args))
 
     # Train!

@@ -5,6 +5,33 @@ from train.train import train
 from accelerate.logging import get_logger
 
 
+# 基础配置参数：
+# config_path: 配置文件路径
+# output_dir: 输出目录
+# seed: 随机种子
+# pretrained_model_name_or_path: 预训练模型路径
+
+# 训练相关参数：
+# train_batch_size: 训练批次大小
+# num_train_epochs: 训练轮数
+# learning_rate: 学习率
+# gradient_accumulation_steps: 梯度累积步数,实际批量大小 = batch_size × gradient_accumulation_steps
+# gradient_checkpointing: 梯度检查点
+# max_train_steps: 最大训练步数
+
+# 模型和优化器参数：
+# pretrained_model_name_or_path: 预训练模型路径
+# pretrained_text_encoder_name_or_path: 预训练文本编码器
+# pretrained_vision_encoder_name_or_path: 预训练视觉编码器
+# adam_beta1, adam_beta2: Adam优化器参数
+# mixed_precision: 混合精度训练设置
+
+# 数据加载参数：
+# load_from_hdf5: 是否从HDF5文件加载数据
+# dataloader_num_workers: 数据加载器的工作进程数
+# dataset_type: 数据集类型（预训练或微调）
+# image_aug: 是否应用图像增强
+
 def parse_args(input_args=None):
     parser = argparse.ArgumentParser(description="Main script for training RDT.")
     parser.add_argument(

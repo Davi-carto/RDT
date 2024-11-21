@@ -1,8 +1,9 @@
-export NCCL_IB_HCA=mlx5_0:1,mlx5_1:1,mlx5_2:1,mlx5_3:1,mlx5_4:1,mlx5_7:1,mlx5_8:1,mlx5_9:1
-export NCCL_IB_DISABLE=0
-export NCCL_SOCKET_IFNAME=bond0
-export NCCL_DEBUG=INFO
-export NCCL_NVLS_ENABLE=0
+# NCCL (NVIDIA Collective Communications Library) 相关配置
+export NCCL_IB_HCA=mlx5_0:1,mlx5_1:1,mlx5_2:1,mlx5_3:1,mlx5_4:1,mlx5_7:1,mlx5_8:1,mlx5_9:1  # InfiniBand 网卡配置
+export NCCL_IB_DISABLE=0                   # 启用 InfiniBand
+export NCCL_SOCKET_IFNAME=bond0            # 网络接口名称
+export NCCL_DEBUG=INFO                     # 调试信息级别
+export NCCL_NVLS_ENABLE=0                  # NVIDIA Launch Service 设置
 
 export TEXT_ENCODER_NAME="google/t5-v1_1-xxl"
 export VISION_ENCODER_NAME="google/siglip-so400m-patch14-384"
