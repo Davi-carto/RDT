@@ -10,6 +10,9 @@ export VISION_ENCODER_NAME="google/siglip-so400m-patch14-384"
 export OUTPUT_DIR="./checkpoints/rdt-finetune-1b"
 export CFLAGS="-I/usr/include"
 export LDFLAGS="-L/usr/lib/x86_64-linux-gnu"
+#   - 如果没有安装 CUTLASS 库，可以直接删除脚本中的 cutlass_path 配置行。 
+#   - 删除后可能会产生一个 warning，但不会对主要流程产生影响。
+# CUTLASS (CUDA Templates for Linear Algebra Subroutines) 是 NVIDIA 开发的一个用于 CUDA 的高性能线性代数模板库
 export CUTLASS_PATH="/path/to/cutlass"
 
 export WANDB_PROJECT="robotics_diffusion_transformer"

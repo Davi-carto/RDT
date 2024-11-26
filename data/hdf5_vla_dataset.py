@@ -9,6 +9,8 @@ import numpy as np
 
 from configs.state_vec import STATE_VEC_IDX_MAPPING
 
+# Note 1: Despite its name, you don't necessarily need to use HDF5 to store your data. 
+# Just make sure that the class is correctly implemented.
 
 class HDF5VLADataset:
     """
@@ -21,6 +23,7 @@ class HDF5VLADataset:
         HDF5_DIR = "data/datasets/agilex/rdt_data/"
         self.DATASET_NAME = "agilex"
         
+        # 收集所有 .hdf5 文件路径,每个文件代表一个episode
         self.file_paths = []
         for root, _, files in os.walk(HDF5_DIR):
             for filename in fnmatch.filter(files, '*.hdf5'):
@@ -122,6 +125,9 @@ class HDF5VLADataset:
             # [Optional] We skip the first few still steps
             EPS = 1e-2
             # Get the idx of the first qpos whose delta exceeds the threshold
+            #qpos[0:1] 与 qpos[0] 的区别：
+            # qpos[0] 返回第一行，降维成一维数组，shape 可能是 (14,)
+            # qpos[0:1] 保持原有维度，返回只包含第一行的二维数组，shape 可能是 (1, 14)
             qpos_delta = np.abs(qpos - qpos[0:1])
             indices = np.where(np.any(qpos_delta > EPS, axis=1))[0]
             if len(indices) > 0:
@@ -164,11 +170,11 @@ class HDF5VLADataset:
             )
             
             # Parse the state and action
-            state = qpos[step_id:step_id+1]
-            state_std = np.std(qpos, axis=0)
-            state_mean = np.mean(qpos, axis=0)
-            state_norm = np.sqrt(np.mean(qpos**2, axis=0))
-            actions = target_qpos
+            state = qpos[step_id:step_id+1] # 返回一个二维数组，shape(1, 14)
+            state_std = np.std(qpos, axis=0) # 返回一个一维数组，shape(14,)
+            state_mean = np.mean(qpos, axis=0) # 返回一个一维数组，shape(14,)
+            state_norm = np.sqrt(np.mean(qpos**2, axis=0)) # 返回一个一维数组，shape(14,)
+            actions = target_qpos # 返回一个二维数组，shape(CHUNK_SIZE, 14)
             if actions.shape[0] < self.CHUNK_SIZE:
                 # Pad the actions using the last action
                 actions = np.concatenate([
@@ -176,7 +182,8 @@ class HDF5VLADataset:
                     np.tile(actions[-1:], (self.CHUNK_SIZE-actions.shape[0], 1))
                 ], axis=0)
             
-            # Fill the state/action into the unified vector
+            # Fill the state/action into the unified vector 
+            # Please refer to configs/state_vec.py for an explanation of each element in the unified vector.
             def fill_in_state(values):
                 # Target indices corresponding to your state space
                 # In this example: 6 joints + 1 gripper for each arm
@@ -189,6 +196,7 @@ class HDF5VLADataset:
                 ] + [
                     STATE_VEC_IDX_MAPPING["right_gripper_open"]
                 ]
+                #把当前数据集里的state统一到我们的128维的状态空间中
                 uni_vec = np.zeros(values.shape[:-1] + (self.STATE_DIM,))
                 uni_vec[..., UNI_STATE_INDICES] = values
                 return uni_vec
@@ -206,7 +214,9 @@ class HDF5VLADataset:
                 imgs = []
                 for i in range(max(step_id-self.IMG_HISORY_SIZE+1, 0), step_id+1):
                     img = f['observations']['images'][key][i]
+                    # 解码图像数据为RGB格式
                     imgs.append(cv2.imdecode(np.frombuffer(img, np.uint8), cv2.IMREAD_COLOR))
+                # 将图像列表转换为numpy数组
                 imgs = np.stack(imgs)
                 if imgs.shape[0] < self.IMG_HISORY_SIZE:
                     # Pad the images using the first image
@@ -218,6 +228,7 @@ class HDF5VLADataset:
             # `cam_high` is the external camera image
             cam_high = parse_img('cam_high')
             # For step_id = first_idx - 1, the valid_len should be one
+            # 通过掩码区分真实和填充的图像，计算损失和评估时时忽略填充帧
             valid_len = min(step_id - (first_idx - 1) + 1, self.IMG_HISORY_SIZE)
             cam_high_mask = np.array(
                 [False] * (self.IMG_HISORY_SIZE - valid_len) + [True] * valid_len

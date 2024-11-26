@@ -21,8 +21,11 @@ from train.image_corrupt import image_corrupt
 def get_clean_item(chunk_dir):
     """
     Get indexes of clean items in a chunk.
+    获取chunk中干净(未使用)的数据项索引
     """
     dirty_bit = read_dirty_bit(chunk_dir)
+    ## result 的结构例如: (array([0, 2, 4]),)  # 注意这是个元组
+    ## result[0]: array([0, 2, 4])         # 获取我们真正需要的数组
     return np.where(1 - dirty_bit)[0].tolist()
 
 
@@ -106,6 +109,7 @@ class VLAConsumerDataset(Dataset):
             if dataset_type == 'pretrain' else 'configs/finetune_datasets.json'
         with open(dataset_names_cfg, 'r') as file:
             DATASET_NAMES = json.load(file)
+
         # Create the mapping between dataset name and id
         self.dataset_name2id = {name: i for i, name in enumerate(DATASET_NAMES)}
         self.dataset_id2name = {i: name for i, name in enumerate(DATASET_NAMES)}
@@ -115,6 +119,7 @@ class VLAConsumerDataset(Dataset):
         self.buffer_dir = config["buf_path"]
         self.num_chunks = config["buf_num_chunks"]
         self.chunk_size = config["buf_chunk_size"]
+
         self.tokenizer_max_length = config["tokenizer_max_length"]
         self.image_aspect_ratio = config["image_aspect_ratio"]
         self.state_noise_snr = state_noise_snr
@@ -148,7 +153,10 @@ class VLAConsumerDataset(Dataset):
     
     def get_dataset_id2name(self):
         return self.dataset_id2name
-        
+    
+    #将一个可迭代对象按照两个一组进行配对
+    # 输入：[image1, mask1, image2, mask2, ...]
+    # 输出：[(image1, mask1), (image2, mask2), ...]
     @staticmethod
     def pairwise(iterable):
         a = iter(iterable)
@@ -168,6 +176,7 @@ class VLAConsumerDataset(Dataset):
                 with open(file_path, 'r') as file:
                     json_content = json.load(file)
                 lock.release_lock()
+                
                 file_path = os.path.join(chunk_dir, f"sample_{chunk_item_idx}.npz")
                 lock = FileLock(file_path)
                 locks.append(lock)
@@ -193,6 +202,7 @@ class VLAConsumerDataset(Dataset):
     def _safe_load(self, index):
         read_chunk_item_indices = []
         # Start searching from a random chunk
+        #循环查找直到找到包含未使用数据的chunk
         read_chunk_idx = index // self.chunk_size
         while len(read_chunk_item_indices) == 0:
             read_chunk_dir = os.path.join(self.buffer_dir, f"chunk_{read_chunk_idx}")
