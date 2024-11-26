@@ -14,7 +14,7 @@ from configs.state_vec import STATE_VEC_IDX_MAPPING
 
 class HDF5VLADataset:
     """
-    This class is used to sample episodes from the embododiment dataset
+    This class is used to sample episodes from the embodiment dataset
     stored in HDF5.
     """
     def __init__(self) -> None:
@@ -24,6 +24,7 @@ class HDF5VLADataset:
         self.DATASET_NAME = "agilex"
         
         # 收集所有 .hdf5 文件路径,每个文件代表一个episode
+        # os.walk()遍历 HDF5_DIR ，过滤出所有 .hdf5 文件路径，拼接出完整路径，存储到列表
         self.file_paths = []
         for root, _, files in os.walk(HDF5_DIR):
             for filename in fnmatch.filter(files, '*.hdf5'):
@@ -33,11 +34,13 @@ class HDF5VLADataset:
         # Load the config
         with open('configs/base.yaml', 'r') as file:
             config = yaml.safe_load(file)
-        self.CHUNK_SIZE = config['common']['action_chunk_size']
-        self.IMG_HISORY_SIZE = config['common']['img_history_size']
-        self.STATE_DIM = config['common']['state_dim']
+        self.CHUNK_SIZE = config['common']['action_chunk_size'] # 预测多少步 action
+        self.IMG_HISORY_SIZE = config['common']['img_history_size'] # 图像历史大小
+        self.STATE_DIM = config['common']['state_dim'] # 统一的动作空间的维度大小（128）
     
         # Get each episode's len
+        # valid 反应episode是否有效，res 是解析后的数据
+        # episode_sample_weights 是每个episode长度占所有episode长度的比例，即权重
         episode_lens = []
         for file_path in self.file_paths:
             valid, res = self.parse_hdf5_file_state_only(file_path)
