@@ -327,7 +327,7 @@ class VLAConsumerDataset(Dataset):
                         # 否则，使用背景图像
                         else:
                             rearranged_images.append((background_image.copy(), False))
-                
+                #从rearranged_images开始，保存图像的数组就不含相机位置信息了？还是说位置信息是靠list中的位置来固定的？
                 preprocessed_images = []
                 processor = self.image_processor
                 for image, valid in rearranged_images:
@@ -378,8 +378,10 @@ class VLAConsumerDataset(Dataset):
                 data_dict["images"] = preprocessed_images
 
                 if self.use_precomp_lang_embed:
+                    # 移除指令末尾的句号（如果有）
                     if content["instruction"][-1] == ".":
                         content["instruction"] = content["instruction"][:-1]
+                    # 根据掩码概率决定使用实际嵌入还是空嵌入
                     data_dict["lang_embed"] = torch.load(content["instruction"]) \
                         if random.random() > self.cond_mask_prob else self.empty_lang_embed
                 else:
