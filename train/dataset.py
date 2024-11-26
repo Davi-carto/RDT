@@ -102,9 +102,11 @@ class VLAConsumerDataset(Dataset):
         super(VLAConsumerDataset, self).__init__()
         
         # Load the control frequency for each dataset
+        # 自己数据集的控制频率要加到configs/dataset_control_freq.json中
         with open("configs/dataset_control_freq.json", 'r') as fp:
             self.control_freq = json.load(fp)
         # Load the dataset names
+        # 自己的数据集名要加到configs/finetune_datasets.json中
         dataset_names_cfg = 'configs/pretrain_datasets.json' \
             if dataset_type == 'pretrain' else 'configs/finetune_datasets.json'
         with open(dataset_names_cfg, 'r') as file:
@@ -136,6 +138,7 @@ class VLAConsumerDataset(Dataset):
             self.empty_lang_embed = torch.load("data/empty_lang_embed.pt")
         
         # Load dataset stat
+        # 自己的数据集通过data/compute_dataset_stat_hdf5.py计算，并保存到configs/dataset_stat.json中
         with open("configs/dataset_stat.json", 'r') as f:
             dataset_stat = json.load(f)
         self.dataset_stat = dataset_stat
@@ -176,7 +179,7 @@ class VLAConsumerDataset(Dataset):
                 with open(file_path, 'r') as file:
                     json_content = json.load(file)
                 lock.release_lock()
-                
+
                 file_path = os.path.join(chunk_dir, f"sample_{chunk_item_idx}.npz")
                 lock = FileLock(file_path)
                 locks.append(lock)
@@ -273,11 +276,16 @@ class VLAConsumerDataset(Dataset):
                 data_dict['data_idx'] = self.dataset_name2id[data_dict['dataset_name']]
                 data_dict['ctrl_freq'] = self.control_freq[data_dict['dataset_name']] \
                     if random.random() > self.cond_mask_prob else 0
-                
+
+                #基于信噪比(SNR)参数向状态数据添加高斯噪声
                 if self.state_noise_snr is not None:
                     states += np.random.normal(
                         0.0, state_std / np.sqrt(10 ** (self.state_noise_snr / 10)), 
                         states.shape)
+
+                # 上面的state_mean等，是单个sample所在的episode中，state各维度的均值和标准差，
+                # 这里的ds_state_mean等，是整个数据集所有episode中，state各维度的均值和标准差
+                # 获取数据集的状态均值并扩展维度以匹配批次大小
                 ds_state_mean = np.array(self.dataset_stat[data_dict['dataset_name']]['state_mean'])
                 ds_state_mean = np.tile(ds_state_mean[None], (states.shape[0], 1))
                 # Randomly mask the states by the mean state
@@ -309,50 +317,62 @@ class VLAConsumerDataset(Dataset):
                     for j in range(self.num_cameras):
                         images, image_mask = image_metas[j]
                         image, valid = images[i], image_mask[i]
+                        # 判断是否使用原始图像：
+                        # 1. 图像必须有效
+                        # 2. 图像必须非空
+                        # 3. 随机数必须大于掩码概率
                         if valid and (math.prod(image.shape) > 0) and \
                             (random.random() > mask_probs[j]):
                             rearranged_images.append((image, True))
+                        # 否则，使用背景图像
                         else:
                             rearranged_images.append((background_image.copy(), False))
                 
                 preprocessed_images = []
                 processor = self.image_processor
                 for image, valid in rearranged_images:
+                    # 转换为PIL图像并调整大小
                     image = Image.fromarray(image)
                     if self.image_size is not None:
                         image = transforms.Resize(self.image_size)(image) # (1008, 336)
                     # assert image.height == 336, "We haven't prepare for training with images of different resolutions."
                     
+                    # 自动调整亮度（如果启用）
                     if valid and self.auto_adjust_image_brightness:
                         pixel_values = list(image.getdata())
                         average_brightness = sum(sum(pixel) for pixel in pixel_values) / (len(pixel_values) * 255.0 * 3)
-                        if average_brightness <= 0.15:
+                        if average_brightness <= 0.15:  # 图像过暗时增加亮度
                             image = transforms.ColorJitter(brightness=(1.75,1.75))(image)
                     
-                    # Only apply image augmentation to 50% of the images
+                    # 随机图像增强（50%概率）
                     if valid and self.image_aug and (random.random() > 0.5):
-                        aug_type = random.choice([
-                            "corrput_only", "color_only", "both"])
+                        aug_type = random.choice(["corrput_only", "color_only", "both"])
                         if aug_type != "corrput_only":
+                            # 颜色增强：调整亮度、对比度、饱和度和色调
                             image = transforms.ColorJitter(
                                 brightness=0.3, contrast=0.4, saturation=0.5, hue=0.03)(image)
                         if aug_type != "color_only":
-                            image = image_corrupt(image)
+                            image = image_corrupt(image)  # 添加噪声或其他损坏效果
                     
+                    # 处理图像纵横比（如果需要填充到正方形）
                     if self.image_aspect_ratio == 'pad':
                         def expand2square(pil_img, background_color):
                             width, height = pil_img.size
                             if width == height:
                                 return pil_img
                             elif width > height:
+                                # 高度小于宽度时，在上下填充
                                 result = Image.new(pil_img.mode, (width, width), background_color)
                                 result.paste(pil_img, (0, (width - height) // 2))
                                 return result
                             else:
+                                # 宽度小于高度时，在左右填充
                                 result = Image.new(pil_img.mode, (height, height), background_color)
                                 result.paste(pil_img, ((height - width) // 2, 0))
                                 return result
                         image = expand2square(image, tuple(int(x*255) for x in processor.image_mean))
+                    
+                    # 最终的图像处理和转换为张量
                     image = processor.preprocess(image, return_tensors='pt')['pixel_values'][0]
                     preprocessed_images.append(image)
                 data_dict["images"] = preprocessed_images
