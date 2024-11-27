@@ -48,12 +48,14 @@ class HDF5VLADataset:
             episode_lens.append(_len)
         self.episode_sample_weights = np.array(episode_lens) / np.sum(episode_lens)
     
+    # len() 函数为Python内置函数，返回对象中元素数量
     def __len__(self):
         return len(self.file_paths)
     
     def get_dataset_name(self):
         return self.DATASET_NAME
     
+    # 抽样一个episode样本用于训练
     def get_item(self, index: int=None, state_only=False):
         """Get a training sample at a random timestep.
 
@@ -63,10 +65,12 @@ class HDF5VLADataset:
             state_only (bool, optional): Whether to return only the state.
                 In this way, the sample will contain a complete trajectory rather
                 than a single timestep. Defaults to False.
-
         Returns:
            sample (dict): a dictionary containing the training sample.
         """
+        # 根据每个episode的权重，随机选择一个episode；
+        # 如果index被提供，则直接使用index索引的episode；
+        # 再检验是否有效
         while True:
             if index is None:
                 file_path = np.random.choice(self.file_paths, p=self.episode_sample_weights)
@@ -120,18 +124,21 @@ class HDF5VLADataset:
         """
         with h5py.File(file_path, 'r') as f:
             qpos = f['observations']['qpos'][:]
+            # 获取 episode 的 timestep 数
             num_steps = qpos.shape[0]
-            # [Optional] We drop too-short episode
+            # [Optional] We drop too-short episode 
+            # timestep 小于128步的 episode 丢弃
             if num_steps < 128:
                 return False, None
             
             # [Optional] We skip the first few still steps
             EPS = 1e-2
             # Get the idx of the first qpos whose delta exceeds the threshold
-            #qpos[0:1] 与 qpos[0] 的区别：
+            # qpos[0:1] 与 qpos[0] 的区别：
             # qpos[0] 返回第一行，降维成一维数组，shape 可能是 (14,)
             # qpos[0:1] 保持原有维度，返回只包含第一行的二维数组，shape 可能是 (1, 14)
             qpos_delta = np.abs(qpos - qpos[0:1])
+            # 存在 qpos_delta 大于 EPS 说明机械臂作了有效运动
             indices = np.where(np.any(qpos_delta > EPS, axis=1))[0]
             if len(indices) > 0:
                 first_idx = indices[0]
@@ -139,6 +146,7 @@ class HDF5VLADataset:
                 raise ValueError("Found no qpos that exceeds the threshold.")
             
             # We randomly sample a timestep
+            # 随机采样一个 timestep 从机械臂开始有效运动的到 episode 结束
             step_id = np.random.randint(first_idx-1, num_steps)
             
             # Load the instruction
@@ -151,6 +159,7 @@ class HDF5VLADataset:
             instruction_type = np.random.choice([
                 'instruction', 'simplified_instruction', 'expanded_instruction'])
             instruction = instruction_dict[instruction_type]
+            # 如果 instruction 是列表，随机选择一个 instruction （isinstance()检查一个对象是否是指定类或指定类元组）
             if isinstance(instruction, list):
                 instruction = np.random.choice(instruction)
             # You can also use precomputed language embeddings (recommended)
@@ -180,6 +189,7 @@ class HDF5VLADataset:
             actions = target_qpos # 返回一个二维数组，shape(CHUNK_SIZE, 14)
             if actions.shape[0] < self.CHUNK_SIZE:
                 # Pad the actions using the last action
+                # 如果 actions 总的 timestep 小于 CHUNK_SIZE，则用最后一个 action 填充
                 actions = np.concatenate([
                     actions,
                     np.tile(actions[-1:], (self.CHUNK_SIZE-actions.shape[0], 1))
@@ -199,7 +209,7 @@ class HDF5VLADataset:
                 ] + [
                     STATE_VEC_IDX_MAPPING["right_gripper_open"]
                 ]
-                #把当前数据集里的state统一到我们的128维的状态空间中
+                # 把当前数据集里的state统一到我们的128维的状态空间中
                 uni_vec = np.zeros(values.shape[:-1] + (self.STATE_DIM,))
                 uni_vec[..., UNI_STATE_INDICES] = values
                 return uni_vec
@@ -213,6 +223,7 @@ class HDF5VLADataset:
             actions = fill_in_state(actions)
             
             # Parse the images
+            # key 是图像类型，如 cam_high、cam_left_wrist、cam_right_wrist
             def parse_img(key):
                 imgs = []
                 for i in range(max(step_id-self.IMG_HISORY_SIZE+1, 0), step_id+1):

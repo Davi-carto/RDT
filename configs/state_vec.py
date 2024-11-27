@@ -1,5 +1,5 @@
 STATE_VEC_IDX_MAPPING = {
-    # [0, 10): right arm joint positions
+    # [0, 10): right arm joint positions 关节位置
     **{
         'arm_joint_{}_pos'.format(i): i for i in range(10)
     },
@@ -13,9 +13,10 @@ STATE_VEC_IDX_MAPPING = {
     **{
         'right_gripper_joint_{}_pos'.format(i): i + 10 for i in range(5)
     },
+    # gripper open 覆盖掉 gripper_joint_0_pos ，占位10
     'gripper_open': 10, # alias of right_gripper_joint_0_pos
     'right_gripper_open': 10,
-    # [15, 25): right arm joint velocities
+    # [15, 25): right arm joint velocities 关节速度
     **{
         'arm_joint_{}_vel'.format(i): i + 15 for i in range(10)
     },
@@ -29,16 +30,16 @@ STATE_VEC_IDX_MAPPING = {
     **{
         'right_gripper_joint_{}_vel'.format(i): i + 25 for i in range(5)
     },
-    'gripper_open_vel': 25, # alias of right_gripper_joint_0_vel
+    'gripper_open_vel': 25, # alias of right_gripper_joint_0_vel 夹爪开启速度
     'right_gripper_open_vel': 25,
-    # [30, 33): right end effector positions
+    # [30, 33): right end effector positions 末端执行器位置
     'eef_pos_x': 30,
     'right_eef_pos_x': 30,
     'eef_pos_y': 31,
     'right_eef_pos_y': 31,
     'eef_pos_z': 32,
     'right_eef_pos_z': 32,
-    # [33, 39): right end effector 6D pose
+    # [33, 39): right end effector 6D pose 末端执行器 6D 位姿
     'eef_angle_0': 33,
     'right_eef_angle_0': 33,
     'eef_angle_1': 34,
@@ -51,14 +52,14 @@ STATE_VEC_IDX_MAPPING = {
     'right_eef_angle_4': 37,
     'eef_angle_5': 38,
     'right_eef_angle_5': 38,
-    # [39, 42): right end effector velocities
+    # [39, 42): right end effector velocities 末端执行器速度
     'eef_vel_x': 39,
     'right_eef_vel_x': 39,
     'eef_vel_y': 40,
     'right_eef_vel_y': 40,
     'eef_vel_z': 41,
     'right_eef_vel_z': 41,
-    # [42, 45): right end effector angular velocities
+    # [42, 45): right end effector angular velocities 末端执行器角速度
     'eef_angular_vel_roll': 42,
     'right_eef_angular_vel_roll': 42,
     'eef_angular_vel_pitch': 43,
