@@ -157,7 +157,7 @@ class VLAConsumerDataset(Dataset):
     def get_dataset_id2name(self):
         return self.dataset_id2name
     
-    #将一个可迭代对象按照两个一组进行配对
+    # 将一个可迭代对象按照两个一组进行配对
     # 输入：[image1, mask1, image2, mask2, ...]
     # 输出：[(image1, mask1), (image2, mask2), ...]
     @staticmethod
@@ -205,7 +205,7 @@ class VLAConsumerDataset(Dataset):
     def _safe_load(self, index):
         read_chunk_item_indices = []
         # Start searching from a random chunk
-        #循环查找直到找到包含未使用数据的chunk
+        # 循环查找直到找到包含未使用数据的chunk
         read_chunk_idx = index // self.chunk_size
         while len(read_chunk_item_indices) == 0:
             read_chunk_dir = os.path.join(self.buffer_dir, f"chunk_{read_chunk_idx}")

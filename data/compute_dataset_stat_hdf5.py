@@ -1,5 +1,6 @@
 """
 This file will compute the min, max, mean, and standard deviation of each datasets 
+计算每个数据集的最小值、最大值、平均值和标准差
 in `pretrain_datasets.json` or `pretrain_datasets.json`.
 """
 

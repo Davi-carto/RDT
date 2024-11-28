@@ -12,8 +12,13 @@ CONFIG_PATH = "configs/base.yaml"
 SAVE_DIR = "outs/"
 
 # Modify this to your task name and instruction
-TASK_NAME = "handover_pan"
-INSTRUCTION = "Pick up the black marker on the right and put it into the packaging box on the left."
+# 区别于 encode_lang_batch.py，通过json文件读取；这里只编码一个任务，直接在代码中修改
+
+#TASK_NAME = "handover_pan"
+#INSTRUCTION = "Pick up the black marker on the right and put it into the packaging box on the left."
+
+TASK_NAME = "pour_water"
+INSTRUCTION = "Pour the water from the bottle on the right into the cup on the left."
 
 # Note: if your GPU VRAM is less than 24GB, 
 # it is recommanded to enable offloading by specifying an offload directory.

@@ -159,7 +159,7 @@ class HDF5VLADataset:
             instruction_type = np.random.choice([
                 'instruction', 'simplified_instruction', 'expanded_instruction'])
             instruction = instruction_dict[instruction_type]
-            # 如果 instruction 是列表，随机选择一个 instruction （isinstance()检查一个对象是否是指定类或指定类元组）
+            # 如果 instruction 是列表，随机选择一个 instruction ，如果 instruction 有很多种相似但不同的描述 （isinstance()检查一个对象是否是指定类或指定类元组）
             if isinstance(instruction, list):
                 instruction = np.random.choice(instruction)
             # You can also use precomputed language embeddings (recommended)

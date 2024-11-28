@@ -64,7 +64,7 @@ DATASETS=(
 )
 
 
-# Iterate over each dataset name
+# Iterate over each dataset name 遍历DATASETS数组中的每个数据集名称，并打印之
 for dataset_name in "${DATASETS[@]}"; do
     echo "Downloading $dataset_name"
 
