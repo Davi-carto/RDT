@@ -149,6 +149,7 @@ class HDF5VLADataset:
             # 随机采样一个 timestep 从机械臂开始有效运动的到 episode 结束
             step_id = np.random.randint(first_idx-1, num_steps)
             
+            """    
             # Load the instruction
             dir_path = os.path.dirname(file_path)
             with open(os.path.join(dir_path, 'expanded_instruction_gpt-4-turbo.json'), 'r') as f_instr:
@@ -163,7 +164,8 @@ class HDF5VLADataset:
             if isinstance(instruction, list):
                 instruction = np.random.choice(instruction)
             # You can also use precomputed language embeddings (recommended)
-            # instruction = "path/to/lang_embed.pt"
+            """
+            instruction = "path/to/pour_water.pt"
             
             # Assemble the meta
             meta = {
