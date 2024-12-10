@@ -49,6 +49,12 @@ def save_episode_data_hdf5(episode_data, save_dir, episode_idx):
             h5file.create_dataset(key, data=value)
         print(f"Saved episode {episode_idx} to {file_path}")
 
+def print_hdf5_structure(file_path):
+    with h5py.File(file_path, 'r') as h5file:
+        def print_attrs(name, obj):
+            print(name)
+        h5file.visititems(print_attrs)
+
 def main():
     # 指定 Zarr 文件路径
     zarr_path = 'data/datasets/pusht_real/replay_buffer.zarr'
