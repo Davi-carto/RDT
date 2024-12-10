@@ -56,6 +56,7 @@ def print_hdf5_structure(file_path):
         h5file.visititems(print_attrs)
 
 def main():
+    """
     # 指定 Zarr 文件路径
     zarr_path = 'data/datasets/pusht_real/replay_buffer.zarr'
     # 指定保存目录
@@ -71,6 +72,8 @@ def main():
 
         # 保存 episode 数据为 HDF5 格式
         save_episode_data_hdf5(episode_data, save_dir, episode_idx)
+    """
+    print_hdf5_structure('data/output/pusht_episodes/episode_0.h5')
 
 if __name__ == "__main__":
     main()
