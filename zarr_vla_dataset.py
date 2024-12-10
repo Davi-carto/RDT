@@ -28,6 +28,15 @@ def save_episode_data(episode_data, save_dir, episode_idx):
         np.save(file_path, value)
         print(f"Saved {key} for episode {episode_idx} to {file_path}")
 
+def print_episode_data(episode_data):
+    for key, value in episode_data.items():
+        if isinstance(value, dict):
+            print(f"{key}:")
+            for sub_key, sub_value in value.items():
+                print(f"  {sub_key}: type={type(sub_value)}, shape={sub_value.shape}")
+        else:
+            print(f"{key}: type={type(value)}, shape={value.shape}")
+
 def main():
     # 指定 Zarr 文件路径
     zarr_path = 'data/datasets/pusht_real/replay_buffer.zarr'
@@ -42,8 +51,8 @@ def main():
         # 提取 episode 数据
         episode_data = replay_buffer.get_episode(episode_idx, copy=True)
 
-        # 保存 episode 数据
-        save_episode_data(episode_data, save_dir, episode_idx)
+        # 打印 episode 数据
+        print_episode_data(episode_data)
 
 if __name__ == "__main__":
     main()
