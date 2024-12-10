@@ -11,7 +11,7 @@ import yaml
 import cv2
 import numpy as np
 
-from diffusion_policy.common.replay_buffer import ReplayBuffer
+from Diffusion_Policy.diffusion_policy.common.replay_buffer import ReplayBuffer
 
 def load_replay_buffer(zarr_path):
     # 加载 ReplayBuffer
@@ -30,9 +30,9 @@ def save_episode_data(episode_data, save_dir, episode_idx):
 
 def main():
     # 指定 Zarr 文件路径
-    zarr_path = 'path/to/your/replay_buffer.zarr'
+    zarr_path = 'data/datasets/pusht_real/replay_buffer.zarr'
     # 指定保存目录
-    save_dir = 'path/to/save/episodes'
+    save_dir = 'data/output/pusht_episodes'
 
     # 加载 ReplayBuffer
     replay_buffer = load_replay_buffer(zarr_path)
