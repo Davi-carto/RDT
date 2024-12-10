@@ -183,5 +183,10 @@ wandb/
 hostfile.txt
 .deepspeed_env
 
+<<<<<<< HEAD
 # t5-v1_1-xxl
 t5-v1_1-xxl/
+=======
+# Diffusion Policy
+Diffusion_Policy/
+>>>>>>> 212822f0505543f1990a085ae8d18b8d6bbc7c15
