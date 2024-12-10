@@ -47,6 +47,7 @@ class VLADataset:
         dataset_type: 'pretrain' or 'finetune', which dataset to load
         repeat: whether to repeat to infinite length
         '''
+        # 读取json文件中数据集名称（们），以及样本权重（们）
         dataset_names_cfg = 'configs/pretrain_datasets.json' \
             if dataset_type == "pretrain" else 'configs/finetune_datasets.json'
         with open(dataset_names_cfg, 'r') as file:
