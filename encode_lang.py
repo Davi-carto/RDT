@@ -1,20 +1,12 @@
-# encode_lang.py 源文件已移动到上级目录，该文件为测试文件
-
-import sys
 import os
-
-# 将上一级目录添加到系统路径
-sys.path.append(os.path.abspath(os.path.join(os.getcwd(), '..')))
-
-# 然后可以正常导入上一级目录中的文件
 
 import torch
 import yaml
 
 from models.multimodal_encoder.t5_encoder import T5Embedder
 
-'''
-GPU = 0
+
+GPU = 3
 MODEL_PATH = "google/t5-v1_1-xxl"
 CONFIG_PATH = "configs/base.yaml"
 SAVE_DIR = "outs/"
@@ -69,4 +61,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-'''

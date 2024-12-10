@@ -149,7 +149,11 @@ class HDF5VLADataset:
             # 随机采样一个 timestep 从机械臂开始有效运动的到 episode 结束
             step_id = np.random.randint(first_idx-1, num_steps)
             
+<<<<<<< Updated upstream
             """    
+=======
+            """
+>>>>>>> Stashed changes
             # Load the instruction
             dir_path = os.path.dirname(file_path)
             with open(os.path.join(dir_path, 'expanded_instruction_gpt-4-turbo.json'), 'r') as f_instr:
