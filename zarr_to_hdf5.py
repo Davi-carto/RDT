@@ -43,7 +43,7 @@ def save_episode_data_hdf5(episode_data, save_dir, episode_idx):
     os.makedirs(save_dir, exist_ok=True)
     
     # 保存每个 episode 到单独的 HDF5 文件
-    file_path = os.path.join(save_dir, f'episode_{episode_idx}.h5')
+    file_path = os.path.join(save_dir, f'episode_{episode_idx}.hdf5')
     with h5py.File(file_path, 'w') as h5file:
         for key, value in episode_data.items():
             h5file.create_dataset(key, data=value)
@@ -56,7 +56,7 @@ def print_hdf5_structure(file_path):
         h5file.visititems(print_attrs)
 
 def main():
-    """
+    
     # 指定 Zarr 文件路径
     zarr_path = 'data/datasets/pusht_real/replay_buffer.zarr'
     # 指定保存目录
@@ -72,8 +72,8 @@ def main():
 
         # 保存 episode 数据为 HDF5 格式
         save_episode_data_hdf5(episode_data, save_dir, episode_idx)
-    """
-    print_hdf5_structure('data/output/pusht_episodes/episode_0.h5')
+    
+    # print_hdf5_structure('data/output/pusht_episodes/episode_0.hdf5')
 
 if __name__ == "__main__":
     main()
