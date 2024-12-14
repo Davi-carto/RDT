@@ -2,8 +2,8 @@ import av
 import os
 import numpy as np
 from Diffusion_Policy.diffusion_policy.common.cv2_util import get_image_transform
-from Diffusion_Policy.diffusion_policy.common.replay_buffer import ReplayBuffer
-from Diffusion_Policy.diffusion_policy.real_world.real_data_conversion import real_data_to_replay_buffer
+from Diffusion_Policy.diffusion_policy.replay_buffer import ReplayBuffer
+from Diffusion_Policy.diffusion_policy.real_data_conversion import real_data_to_replay_buffer
 
 def load_replay_buffer(zarr_path):
     # 加载 ReplayBuffer
