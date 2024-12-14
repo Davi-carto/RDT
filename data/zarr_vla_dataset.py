@@ -171,10 +171,10 @@ class HDF5VLADataset:
             target_qpos = f['action'][step_id:step_id+self.CHUNK_SIZE]
             
             # Parse the state and action
-            state = qpos[step_id:step_id+1] 
-            state_std = np.std(qpos, axis=0)
-            state_mean = np.mean(qpos, axis=0)
-            state_norm = np.sqrt(np.mean(qpos**2, axis=0))
+            state_qpos = qpos[step_id:step_id+1] 
+            state_qpos_std = np.std(qpos, axis=0)
+            state_qpos_mean = np.mean(qpos, axis=0)
+            state_qpos_norm = np.sqrt(np.mean(qpos**2, axis=0))
             
             state_eef_pose = eef_pose[step_id:step_id+1]
             state_eef_pose_std = np.std(eef_pose, axis=0)
@@ -209,21 +209,30 @@ class HDF5VLADataset:
                 uni_vec[..., UNI_STATE_INDICES] = values
                 return uni_vec
             
-            state = fill_in_state(state)
-            state_indicator = fill_in_state(np.ones_like(state_std))
-            state_std = fill_in_state(state_std)
-            state_mean = fill_in_state(state_mean)
-            state_norm = fill_in_state(state_norm)
-
-            action = fill_in_state(action)
+            state_qpos = fill_in_state(state_qpos)
+            state_qpos_std = fill_in_state(state_qpos_std)
+            state_qpos_mean = fill_in_state(state_qpos_mean)
+            state_qpos_norm = fill_in_state(state_qpos_norm)
 
             state_eef_pose = fill_in_state_eef_pose(state_eef_pose)
             state_eef_pose_std = fill_in_state_eef_pose(state_eef_pose_std)
             state_eef_pose_mean = fill_in_state_eef_pose(state_eef_pose_mean)
             state_eef_pose_norm = fill_in_state_eef_pose(state_eef_pose_norm)
             
+            # 每个 fill_in_state 生成不同的向量实例，
+            # 将 state_qpos 和 state_eef_pose 拼接起来，生成 state 向量，在一个实例之中
+            state = state_qpos + state_eef_pose
+            state_std = state_qpos_std + state_eef_pose_std
+            state_mean = state_qpos_mean + state_eef_pose_mean
+            state_norm = state_qpos_norm + state_eef_pose_norm
+
+            state_indicator = fill_in_state(np.ones_like(state_std))
+
+            action = fill_in_state(action)
+
             # Parse the images
             # key 是图像类型，如 cam_high、cam_left_wrist、cam_right_wrist
+            # TODO：更改图像部分代码
             def parse_img(key):
                 imgs = []
                 for i in range(max(step_id-self.IMG_HISORY_SIZE+1, 0), step_id+1):
@@ -263,10 +272,6 @@ class HDF5VLADataset:
                 "state_mean": state_mean,
                 "state_norm": state_norm,
                 "actions": actions,
-                "state_eef_pose": state_eef_pose,
-                "state_eef_pose_std": state_eef_pose_std,
-                "state_eef_pose_mean": state_eef_pose_mean,
-                "state_eef_pose_norm": state_eef_pose_norm,
                 "state_indicator": state_indicator,
                 "cam_high": cam_high,
                 "cam_high_mask": cam_high_mask,
@@ -313,7 +318,7 @@ class HDF5VLADataset:
             target_qpos = f['action'][:]
             
             # Parse the state and action (state1: qpos, state2: eef_pose, action: target_qpos)
-            state = qpos[first_idx-1:]
+            state_qpos = qpos[first_idx-1:]
             state_eef_pose = eef_pose[first_idx-1:]
             action = target_qpos[first_idx-1:]
             
@@ -334,14 +339,14 @@ class HDF5VLADataset:
                 uni_vec[..., UNI_STATE_INDICES] = values
                 return uni_vec
             
-            state = fill_in_state(state)
-            action = fill_in_state(action)
+            state_qpos = fill_in_state(state_qpos)
             state_eef_pose = fill_in_state_eef_pose(state_eef_pose)
+            state = state_qpos + state_eef_pose
 
+            action = fill_in_state(action)
             # Return the resulting sample
             return True, {
-                "state_qpos": state,
-                "state_eef_pose": state_eef_pose,
+                "state": state,
                 "action": action
             }
 
