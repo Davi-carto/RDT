@@ -236,7 +236,7 @@ class HDF5VLADataset:
             def parse_img(key):
                 imgs = []
                 for i in range(max(step_id-self.IMG_HISORY_SIZE+1, 0), step_id+1):
-                    img = f['observations']['images'][key][i]
+                    img = f[key][i]
                     # 解码图像数据为RGB格式
                     imgs.append(cv2.imdecode(np.frombuffer(img, np.uint8), cv2.IMREAD_COLOR))
                 # 将图像列表转换为numpy数组
@@ -249,16 +249,16 @@ class HDF5VLADataset:
                     ], axis=0)
                 return imgs
             # `cam_high` is the external camera image
-            cam_high = parse_img('cam_high')
+            cam_high = parse_img('camera_0')
             # For step_id = first_idx - 1, the valid_len should be one
             # 通过掩码区分真实和填充的图像，计算损失和评估时时忽略填充帧
             valid_len = min(step_id - (first_idx - 1) + 1, self.IMG_HISORY_SIZE)
             cam_high_mask = np.array(
                 [False] * (self.IMG_HISORY_SIZE - valid_len) + [True] * valid_len
             )
-            cam_left_wrist = parse_img('cam_left_wrist')
+            cam_left_wrist = parse_img('camera_1')
             cam_left_wrist_mask = cam_high_mask.copy()
-            cam_right_wrist = parse_img('cam_right_wrist')
+            cam_right_wrist = parse_img('camera_2')
             cam_right_wrist_mask = cam_high_mask.copy()
             
             # Return the resulting sample

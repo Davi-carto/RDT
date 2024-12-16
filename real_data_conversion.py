@@ -1,44 +1,76 @@
-import av
+from typing import Sequence, Tuple, Dict, Optional, Union
 import os
-import numpy as np
 import pathlib
+import numpy as np
+import av
+import zarr
+import numcodecs
 import multiprocessing
-from Diffusion_Policy.diffusion_policy.common.cv2_util import get_image_transform
-from Diffusion_Policy.diffusion_policy.common.replay_buffer import ReplayBuffer
-from Diffusion_Policy.diffusion_policy.real_world.video_recorder import read_video
-
 import concurrent.futures
 from tqdm import tqdm
-import zarr
+from Diffusion_Policy.diffusion_policy.common.replay_buffer import ReplayBuffer, get_optimal_chunks
+from Diffusion_Policy.diffusion_policy.common.cv2_util import get_image_transform
+from video_recorder import read_video
+from Diffusion_Policy.diffusion_policy.codecs.imagecodecs_numcodecs import (
+    register_codecs,
+    Jpeg2k
+)
+register_codecs()
 
-def process_and_store_videos(dataset_path, out_store_path):
+
+def real_data_to_replay_buffer(
+        dataset_path: str, 
+        out_store: Optional[zarr.ABSStore]=None, 
+        out_resolutions: Union[None, tuple, Dict[str,tuple]]=None, # (width, height)
+        lowdim_keys: Optional[Sequence[str]]=None,
+        image_keys: Optional[Sequence[str]]=None,
+        lowdim_compressor: Optional[numcodecs.abc.Codec]=None,
+        image_compressor: Optional[numcodecs.abc.Codec]=None,
+        n_decoding_threads: int=multiprocessing.cpu_count(),
+        n_encoding_threads: int=multiprocessing.cpu_count(),
+        max_inflight_tasks: int=multiprocessing.cpu_count()*5,
+        verify_read: bool=True
+        ) -> ReplayBuffer:
+    """
+    It is recommended to use before calling this function
+    to avoid CPU oversubscription
+    cv2.setNumThreads(1)
+    threadpoolctl.threadpool_limits(1)
+
+    out_resolution:
+        if None:
+            use video resolution
+        if (width, height) e.g. (1280, 720)
+        if dict:
+            camera_0: (1280, 720)
+    image_keys: ['camera_0', 'camera_1']
+    """
+    if out_store is None:
+        out_store = zarr.MemoryStore()
+    if n_decoding_threads <= 0:
+        n_decoding_threads = multiprocessing.cpu_count()
+    if n_encoding_threads <= 0:
+        n_encoding_threads = multiprocessing.cpu_count()
+    if image_compressor is None:
+        image_compressor = Jpeg2k(level=50)
+
+    # verify input
     input = pathlib.Path(os.path.expanduser(dataset_path))
-    in_replay_buffer_dir = input.joinpath('replay_buffer.zarr')
+    in_zarr_path = input.joinpath('replay_buffer.zarr')
     in_video_dir = input.joinpath('videos')
-
-    assert in_replay_buffer_dir.is_dir()
+    assert in_zarr_path.is_dir()
     assert in_video_dir.is_dir()
-
-    in_replay_buffer = ReplayBuffer.create_from_path(in_replay_buffer_dir, mode='r')
     
+    in_replay_buffer = ReplayBuffer.create_from_path(str(in_zarr_path.absolute()), mode='r')
+
     # save lowdim data to single chunk
     chunks_map = dict()
     compressor_map = dict()
     for key, value in in_replay_buffer.data.items():
         chunks_map[key] = value.shape
-        compressor_map[key] = None
-
-    lowdim_keys = list(in_replay_buffer.data.keys())
-    image_keys = ['camera_0', 'camera_1', 'camera_2', 'camera_3', 'camera_4']
-    out_resolutions = (1280, 720)
-    n_decoding_threads = multiprocessing.cpu_count()
-    n_encoding_threads = multiprocessing.cpu_count()
-    max_inflight_tasks = multiprocessing.cpu_count()*5
+        compressor_map[key] = lowdim_compressor
 
     print('Loading lowdim data')
-
-    # 创建一个 Zarr DirectoryStore
-    out_store = zarr.DirectoryStore(out_store_path) 
     out_replay_buffer = ReplayBuffer.copy_from_store(
         src_store=in_replay_buffer.root.store,
         store=out_store,
@@ -46,24 +78,21 @@ def process_and_store_videos(dataset_path, out_store_path):
         chunks=chunks_map,
         compressors=compressor_map
         )
-
+    
     # worker function
     def put_img(zarr_arr, zarr_idx, img):
         try:
             zarr_arr[zarr_idx] = img
             # make sure we can successfully decode
-            _ = zarr_arr[zarr_idx]
+            if verify_read:
+                _ = zarr_arr[zarr_idx]
             return True
         except Exception as e:
             return False
 
-
-    # 复制低维数据
+    
     n_cameras = 0
     camera_idxs = set() 
-
-    # estimate number of cameras
-    # 从视频文件中提取相机索引，0、1、2、3 ***
     if image_keys is not None:
         n_cameras = len(image_keys)
         # 获取 image_keys 中的相机索引，0、1、2、3
@@ -83,13 +112,11 @@ def process_and_store_videos(dataset_path, out_store_path):
     timestamps = in_replay_buffer['timestamp'][:]
     dt = timestamps[1] - timestamps[0]
 
-
-
     # 使用 tqdm 创建进度条，显示图像数据加载进度
     with tqdm(total=n_steps*n_cameras, desc="Loading image data", mininterval=1.0) as pbar:
         # one chunk per thread, therefore no synchronization needed
         # 创建线程池，用于并行处理视频，提高处理速度
-        with concurrent.futures.ThreadPoolExecutor(max_workers=16) as executor:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=n_encoding_threads) as executor:
             futures = set()
             for episode_idx, episode_length in enumerate(episode_lengths):
                 episode_video_dir = in_video_dir.joinpath(str(episode_idx))
@@ -113,9 +140,6 @@ def process_and_store_videos(dataset_path, out_store_path):
                         if camera_idx not in camera_idxs:
                             continue
 
-
-
-
                     # read resolution 读取视频的分辨率
                     with av.open(str(video_path.absolute())) as container:
                         video = container.streams.video[0]
@@ -124,7 +148,6 @@ def process_and_store_videos(dataset_path, out_store_path):
                     in_img_res = this_res
 
                     arr_name = f'camera_{camera_idx}'
-
                     # figure out save resolution
                     out_img_res = in_img_res
                     if isinstance(out_resolutions, dict):
@@ -140,7 +163,7 @@ def process_and_store_videos(dataset_path, out_store_path):
                             name=arr_name,
                             shape=(n_steps,oh,ow,3),
                             chunks=(1,oh,ow,3),
-                            compressor=None,
+                            compressor=image_compressor,
                             dtype=np.uint8
                         )
                     arr = out_replay_buffer[arr_name]
@@ -166,24 +189,12 @@ def process_and_store_videos(dataset_path, out_store_path):
                         global_idx = episode_start + step_idx
                         futures.add(executor.submit(put_img, arr, global_idx, frame))
 
-
                         if step_idx == (episode_length - 1):
                             break
-
             completed, futures = concurrent.futures.wait(futures)
             for f in completed:
                 if not f.result():
                     raise RuntimeError('Failed to encode image!')
             pbar.update(len(completed))
+    return out_replay_buffer
 
-    out_replay_buffer.save_to_path(out_store_path)
-
-def main():
-    dataset_path = 'data/datasets/pusht_real'  # 替换为实际数据集路径
-    out_store_path = 'data/datasets/pusht_real_processed'  # 替换为实际输出存储路径
-
-    process_and_store_videos(dataset_path, out_store_path)
-    print("视频处理完成，数据已存储到:", out_store_path)
-
-if __name__ == "__main__":
-    main()
