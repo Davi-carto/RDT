@@ -128,6 +128,7 @@ If your fine-tuning dataset is in the [Open X-Embodiment](https://robotics-trans
       ```bash
       # Under the root directory of this repo
       # Use -h to see the full usage
+      # compute such as state_mean in file train\dataset_stat.json
       python -m data.compute_dataset_stat_hdf5
       ```
 
