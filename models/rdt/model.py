@@ -97,7 +97,7 @@ class RDT(nn.Module):
             )
         self.lang_cond_pos_embed.data.copy_(
             torch.from_numpy(lang_cond_pos_embed).float().unsqueeze(0))
-        
+
         if self.img_pos_embed_config is None:
             img_cond_pos_embed = get_1d_sincos_pos_embed_from_grid(
                 self.hidden_size, torch.arange(self.img_cond_len))

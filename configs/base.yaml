@@ -4,7 +4,7 @@ common:
   # The number of future actions to predict
   action_chunk_size: 64
   # The number of cameras to be used in the model
-  num_cameras: 2
+  num_cameras: 3
   # Dimension for state/action, we use the same space for both state and action
   # This MUST be equal to configs/state_vec.py
   state_dim: 128

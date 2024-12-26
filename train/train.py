@@ -149,35 +149,45 @@ def train(args, logger):
     if (
         args.pretrained_model_name_or_path is not None
         and not os.path.isfile(args.pretrained_model_name_or_path)
-    ):
+    ):  
+        # 此时不是路径，而是模型的huggingface id
         logger.info("Constructing model from pretrained checkpoint.")
         rdt = RDTRunner.from_pretrained(args.pretrained_model_name_or_path)
     else:
         logger.info("Constructing model from provided config.")
-        # Calculate the image condition length
-        img_cond_len = (config["common"]["img_history_size"] 
-                        * config["common"]["num_cameras"] 
-                        * vision_encoder.num_patches)
+        # 计算图像条件长度
+        img_cond_len = (config["common"]["img_history_size"] *  # 历史图像数量
+                        config["common"]["num_cameras"] *        # 相机数量
+                        vision_encoder.num_patches)              # 每张图像的patch数量
+
         rdt = RDTRunner(
+            # 动作空间维度
             action_dim=config["common"]["state_dim"],
+            # 预测时间步长
             pred_horizon=config["common"]["action_chunk_size"],
+            # 模型配置
             config=config["model"],
+            # 语言、图像、状态的token维度
             lang_token_dim=config["model"]["lang_token_dim"],
             img_token_dim=config["model"]["img_token_dim"],
             state_token_dim=config["model"]["state_token_dim"],
+            # 最大语言序列长度
             max_lang_cond_len=config["dataset"]["tokenizer_max_length"],
+            # 图像条件长度
             img_cond_len=img_cond_len,
+            # 图像位置编码配置
             img_pos_embed_config=[
-                # No initial pos embed in the last grid size
-                # since we've already done in ViT
-                ("image", (config["common"]["img_history_size"], 
-                    config["common"]["num_cameras"], 
-                    -vision_encoder.num_patches)),  
+                ("image", (
+                    config["common"]["img_history_size"],  # 正数：需要位置编码
+                    config["common"]["num_cameras"],       # 正数：需要位置编码
+                    -vision_encoder.num_patches           # 负数：已在ViT中完成位置编码
+                )),  
             ],
+            # 语言位置编码配置
             lang_pos_embed_config=[
-                # Similarly, no initial pos embed for language
-                ("lang", -config["dataset"]["tokenizer_max_length"]),
+                ("lang", -config["dataset"]["tokenizer_max_length"]),  # 负数：已在语言模型中完成位置编码
             ],
+            # 数据类型
             dtype=weight_dtype,
         )
         

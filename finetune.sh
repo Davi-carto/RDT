@@ -31,7 +31,7 @@ fi
 
 deepspeed --hostfile=hostfile.txt main.py \
     --deepspeed="./configs/zero2.json" \
-    --pretrained_model_name_or_path="robotics-diffusion-transformer/rdt-1b" \
+    --pretrained_model_name_or_path="rdt-1b" \
     --pretrained_text_encoder_name_or_path=$TEXT_ENCODER_NAME \
     --pretrained_vision_encoder_name_or_path=$VISION_ENCODER_NAME \
     --output_dir=$OUTPUT_DIR \

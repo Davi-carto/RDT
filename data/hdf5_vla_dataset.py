@@ -263,6 +263,9 @@ class HDF5VLADataset:
             )
             cam_right_wrist = parse_img('camera_1')
             cam_right_wrist_mask = cam_high_mask.copy()
+
+            cam_left_wrist = np.zeros((self.IMG_HISORY_SIZE, 0, 0, 0))
+            cam_left_wrist_mask = cam_high_mask.copy()
             
             # Return the resulting sample
             # For unavailable images, return zero-shape arrays, i.e., (IMG_HISORY_SIZE, 0, 0, 0)
@@ -278,8 +281,8 @@ class HDF5VLADataset:
                 "state_indicator": state_indicator,
                 "cam_high": cam_high,
                 "cam_high_mask": cam_high_mask,
-                # "cam_left_wrist": cam_left_wrist, TODO:添加左手
-                # "cam_left_wrist_mask": cam_left_wrist_mask, TODO:添加左手
+                "cam_left_wrist": cam_left_wrist, # TODO:添加左手
+                "cam_left_wrist_mask": cam_left_wrist_mask, # TODO:添加左手
                 "cam_right_wrist": cam_right_wrist,
                 "cam_right_wrist_mask": cam_right_wrist_mask
             }

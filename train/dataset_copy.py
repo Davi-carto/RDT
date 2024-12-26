@@ -13,9 +13,9 @@ from torchvision import transforms
 from PIL import Image
 import transformers
 
-from data.filelock import FileLock
-from data.hdf5_vla_dataset import HDF5VLADataset
-from train.image_corrupt import image_corrupt
+# from data.filelock import FileLock
+# from data.hdf5_vla_dataset import HDF5VLADataset
+# from train.image_corrupt import image_corrupt
 
 
 def get_clean_item(chunk_dir):
@@ -261,7 +261,6 @@ class VLAConsumerDataset(Dataset):
                     image_metas = [
                         res['cam_high'], res['cam_high_mask'],
                         res['cam_right_wrist'], res['cam_right_wrist_mask'],
-                        res['cam_left_wrist'],res['cam_left_wrist_mask']
                     ]
                     state_std = res['state_std']
                     state_mean = res['state_mean']
@@ -309,20 +308,6 @@ class VLAConsumerDataset(Dataset):
                 ) * background_color
                 
                 image_metas = list(self.pairwise(image_metas))
-                """
-                print("Image metas structure:")
-                for idx, (images, image_mask) in enumerate(image_metas):
-                    print(f"  Pair {idx}:")
-                    print(f"    Images type: {type(images)}, shape: {images.shape}")
-                    print(f"    Image mask type: {type(image_mask)}, shape: {image_mask.shape}")
-                Image metas structure:
-                Pair 0:
-                Images type: <class 'numpy.ndarray'>, shape: (480, 640, 3)
-                Image mask type: <class 'numpy.ndarray'>, shape: (2,)
-                Pair 1:
-                Images type: <class 'numpy.ndarray'>, shape: (480, 640, 3)
-                Image mask type: <class 'numpy.ndarray'>, shape: (2,)
-                """
                 mask_probs = [self.cond_mask_prob] * self.num_cameras
                 if self.cam_ext_mask_prob >= 0.0:
                     mask_probs[0] = self.cam_ext_mask_prob
@@ -330,8 +315,6 @@ class VLAConsumerDataset(Dataset):
                 for i in range(self.img_history_size):
                     for j in range(self.num_cameras):
                         images, image_mask = image_metas[j]
-                        # Images type: <class 'numpy.ndarray'>, shape: (480, 640, 3)
-                        # Image mask type: <class 'numpy.ndarray'>, shape: (2,)
                         image, valid = images[i], image_mask[i]
                         # 判断是否使用原始图像：
                         # 1. 图像必须有效
@@ -386,7 +369,7 @@ class VLAConsumerDataset(Dataset):
                                 result = Image.new(pil_img.mode, (height, height), background_color)
                                 result.paste(pil_img, ((height - width) // 2, 0))
                                 return result
-                    
+                        print(tuple(int(x*255) for x in processor.image_mean))
                         image = expand2square(image, tuple(int(x*255) for x in processor.image_mean))
                     
                     # 最终的图像处理和转换为张量
@@ -471,7 +454,6 @@ class DataCollatorForVLAConsumerDataset(object):
                 input_ids.append(instance["input_ids"])
             else:
                 lang_embeds.append(instance["lang_embed"])
-                # print(f"lang_embed type: {type(instance['lang_embed'])}, content: {instance['lang_embed']},lang_embed_embedding:{(instance['lang_embed']).shape}")
                 lang_embed_lens.append(instance["lang_embed"].shape[0])
             
             batch["images"].append(torch.stack(instance["images"], dim=0))
@@ -509,3 +491,28 @@ class DataCollatorForVLAConsumerDataset(object):
             
             
         return batch
+
+
+
+
+
+if __name__ == "__main__":
+
+    def expand2square(pil_img, background_color):
+        width, height = pil_img.size
+        if width == height:
+            return pil_img
+        elif width > height:
+            # 高度小于宽度时，在上下填充
+            result = Image.new("RGB", (width, width), background_color)
+            result.paste(pil_img, (0, (width - height) // 2))
+            return result
+        else:
+            # 宽度小于高度时，在左右填充
+            result = Image.new("RGB", (height, height), background_color)
+            result.paste(pil_img, ((height - width) // 2, 0))
+            return result
+        
+    image = Image.open("/home/rzx/RDT/train/123.png")
+    print(processor.image_mean)
+    print(tuple(int(x*255) for x in processor.image_mean))

@@ -25,30 +25,37 @@ class CompatiblePyTorchModelHubMixin(PyTorchModelHubMixin):
     def _from_pretrained(
         cls,
         *,
-        model_id: str,
-        revision: Optional[str],
-        cache_dir: Optional[Union[str, Path]],
-        force_download: bool,
-        proxies: Optional[Dict],
-        resume_download: Optional[bool],
-        local_files_only: bool,
-        token: Union[str, bool, None],
-        map_location: str = "cpu",
-        strict: bool = False,
-        **model_kwargs,
+        model_id: str,          # 模型ID或本地路径
+        revision: Optional[str], # 模型版本
+        cache_dir: Optional[Union[str, Path]], # 缓存目录
+        force_download: bool,    # 是否强制重新下载
+        proxies: Optional[Dict], # 代理设置
+        resume_download: Optional[bool], # 是否断点续传
+        local_files_only: bool,  # 是否只使用本地文件
+        token: Union[str, bool, None], # HuggingFace token
+        map_location: str = "cpu", # 模型加载位置
+        strict: bool = False,    # 是否严格加载权重
+        **model_kwargs,          # 其他模型参数
     ):
-        """Load Pytorch pretrained weights and return the loaded model."""
+        """从预训练权重加载PyTorch模型。"""
+        # 使用传入的参数初始化模型
         model = cls(**model_kwargs)
+
+        # 如果model_id是本地目录路径
         if os.path.isdir(model_id):
             print("Loading weights from local directory")
             try:
+                # 首先尝试加载safetensors格式的权重文件
                 model_file = os.path.join(model_id, SAFETENSORS_SINGLE_FILE)
                 return cls._load_as_safetensor(model, model_file, map_location, strict)
             except FileNotFoundError:
+                # 如果找不到safetensors文件，则尝试加载pytorch格式的权重文件
                 model_file = os.path.join(model_id, PYTORCH_WEIGHTS_NAME)
                 return cls._load_as_pickle(model, model_file, map_location, strict)
+        # 如果model_id是HuggingFace模型ID
         else:
             try:
+                # 首先尝试从HuggingFace下载safetensors格式的权重文件
                 model_file = hf_hub_download(
                     repo_id=model_id,
                     filename=SAFETENSORS_SINGLE_FILE,
@@ -62,6 +69,7 @@ class CompatiblePyTorchModelHubMixin(PyTorchModelHubMixin):
                 )
                 return cls._load_as_safetensor(model, model_file, map_location, strict)
             except EntryNotFoundError:
+                # 如果找不到safetensors文件，则下载pytorch格式的权重文件
                 model_file = hf_hub_download(
                     repo_id=model_id,
                     filename=PYTORCH_WEIGHTS_NAME,
