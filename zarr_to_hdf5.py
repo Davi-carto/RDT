@@ -78,8 +78,7 @@ def main(zarr_path, save_dir):
         # 保存 episode 数据为 HDF5 格式
         save_episode_data_hdf5(episode_data, save_dir, episode_idx)
     """
-    hdf5_file_path = os.path.join(save_dir, 'episode_25.hdf5')
-    print_episode_data(hdf5_file_path)
+    print_hdf5_structure('data/output/pusht_episodes/episode_0.hdf5')
 
 if __name__ == "__main__":
     main()
