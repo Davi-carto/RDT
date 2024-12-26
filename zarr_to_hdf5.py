@@ -5,7 +5,7 @@
 import os
 import fnmatch
 import json
-
+import click
 import h5py
 import zarr
 import yaml
@@ -13,6 +13,11 @@ import cv2
 import numpy as np
 
 from Diffusion_Policy.diffusion_policy.common.replay_buffer import ReplayBuffer
+from Diffusion_Policy.diffusion_policy.codecs.imagecodecs_numcodecs import (
+    register_codecs,
+    Jpeg2k
+)
+register_codecs()
 
 def load_replay_buffer(zarr_path):
     # 加载 ReplayBuffer
@@ -29,14 +34,15 @@ def save_episode_data(episode_data, save_dir, episode_idx):
         np.save(file_path, value)
         print(f"Saved {key} for episode {episode_idx} to {file_path}")
 
-def print_episode_data(episode_data):
-    for key, value in episode_data.items():
-        if isinstance(value, dict):
+def print_episode_data(file_path):
+    with h5py.File(file_path, 'r') as h5file:
+        for key in h5file.keys():
             print(f"{key}:")
-            for sub_key, sub_value in value.items():
-                print(f"  {sub_key}: type={type(sub_value)}, shape={sub_value.shape}")
-        else:
-            print(f"{key}: type={type(value)}, shape={value.shape}")
+            data = h5file[key]
+            if isinstance(data, h5py.Dataset):
+                print(f"  type={type(data)}, shape={data.shape}")
+            elif isinstance(data, h5py.Group):
+                print(f"  Group with keys: {list(data.keys())}")
 
 def save_episode_data_hdf5(episode_data, save_dir, episode_idx):
     # 创建保存目录
@@ -55,13 +61,12 @@ def print_hdf5_structure(file_path):
             print(name)
         h5file.visititems(print_attrs)
 
-def main():
-    """
-    # 指定 Zarr 文件路径
-    zarr_path = 'data/datasets/pusht_real/replay_buffer.zarr'
-    # 指定保存目录
-    save_dir = 'data/output/pusht_episodes'
+@click.command()
+@click.option('--zarr_path', '-i',  required=True)
+@click.option('--save_dir', '-o', default=None)
 
+def main(zarr_path, save_dir):
+    """
     # 加载 ReplayBuffer
     replay_buffer = load_replay_buffer(zarr_path)
 
@@ -73,7 +78,8 @@ def main():
         # 保存 episode 数据为 HDF5 格式
         save_episode_data_hdf5(episode_data, save_dir, episode_idx)
     """
-    print_hdf5_structure('data/output/pusht_episodes/episode_0.hdf5')
+    hdf5_file_path = os.path.join(save_dir, 'episode_25.hdf5')
+    print_episode_data(hdf5_file_path)
 
 if __name__ == "__main__":
     main()

@@ -414,7 +414,8 @@ def train(args, logger):
                 actions = batch["actions"].to(dtype=weight_dtype)
                 state_elem_mask = batch["state_elem_mask"].to(dtype=weight_dtype)
                 ctrl_freqs = batch["ctrl_freqs"]
-                    
+
+                print(images.shape)    
                 with torch.no_grad():
                     batch_size, _, C, H, W = images.shape
                     image_embeds = vision_encoder(images.reshape(-1, C, H, W)).detach()
@@ -429,6 +430,7 @@ def train(args, logger):
                         )["last_hidden_state"].detach()
                 
                 state_elem_mask = state_elem_mask.unsqueeze(1)
+                # print(image_embeds.shape)
                 loss = rdt(
                     lang_tokens=text_embeds,
                     lang_attn_mask=lang_attn_mask,

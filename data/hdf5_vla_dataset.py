@@ -9,9 +9,6 @@ import numpy as np
 
 from configs.state_vec import STATE_VEC_IDX_MAPPING
 
-# Note 1: Despite its name, you don't necessarily need to use HDF5 to store your data. 
-# Just make sure that the class is correctly implemented.
-
 class HDF5VLADataset:
     """
     This class is used to sample episodes from the embodiment dataset
@@ -20,8 +17,8 @@ class HDF5VLADataset:
     def __init__(self) -> None:
         # [Modify] The path to the HDF5 dataset directory
         # Each HDF5 file contains one episode
-        HDF5_DIR = "data/datasets/agilex/rdt_data/"
-        self.DATASET_NAME = "agilex"
+        HDF5_DIR = "data/output/pusht_episodes/" # TODO：修改路径
+        self.DATASET_NAME = "pusht" # TODO：修改路径
         
         # 收集所有 .hdf5 文件路径,每个文件代表一个episode
         # os.walk()遍历 HDF5_DIR ，过滤出所有 .hdf5 文件路径，拼接出完整路径，存储到列表
@@ -123,22 +120,17 @@ class HDF5VLADataset:
                 } or None if the episode is invalid.
         """
         with h5py.File(file_path, 'r') as f:
-            qpos = f['observations']['qpos'][:]
-            # 获取 episode 的 timestep 数
-            num_steps = qpos.shape[0]
-            # [Optional] We drop too-short episode 
-            # timestep 小于128步的 episode 丢弃
+            num_steps = f['robot_joint'].shape[0]
             if num_steps < 128:
                 return False, None
+
+            qpos = f['robot_joint'][:]
+            eef_pose = f['robot_eef_pose'][:]
             
             # [Optional] We skip the first few still steps
             EPS = 1e-2
             # Get the idx of the first qpos whose delta exceeds the threshold
-            # qpos[0:1] 与 qpos[0] 的区别：
-            # qpos[0] 返回第一行，降维成一维数组，shape 可能是 (14,)
-            # qpos[0:1] 保持原有维度，返回只包含第一行的二维数组，shape 可能是 (1, 14)
             qpos_delta = np.abs(qpos - qpos[0:1])
-            # 存在 qpos_delta 大于 EPS 说明机械臂作了有效运动
             indices = np.where(np.any(qpos_delta > EPS, axis=1))[0]
             if len(indices) > 0:
                 first_idx = indices[0]
@@ -166,7 +158,7 @@ class HDF5VLADataset:
                 instruction = np.random.choice(instruction)
             # You can also use precomputed language embeddings (recommended)
             """
-            instruction = "path/to/pour_water.pt"
+            instruction = "data/output/lang_embed_0.pt" # TODO: 修改路径
             
             # Assemble the meta
             meta = {
@@ -176,20 +168,23 @@ class HDF5VLADataset:
                 "instruction": instruction
             }
             
-            # Rescale gripper to [0, 1]
-            qpos = qpos / np.array(
-               [[1, 1, 1, 1, 1, 1, 4.7908, 1, 1, 1, 1, 1, 1, 4.7888]] 
-            )
-            target_qpos = f['action'][step_id:step_id+self.CHUNK_SIZE] / np.array(
-               [[1, 1, 1, 1, 1, 1, 11.8997, 1, 1, 1, 1, 1, 1, 13.9231]] 
-            )
+            target_qpos = f['action'][step_id:step_id+self.CHUNK_SIZE]
             
             # Parse the state and action
-            state = qpos[step_id:step_id+1] # 返回一个二维数组，shape(1, 14)
-            state_std = np.std(qpos, axis=0) # 返回一个一维数组，shape(14,)
-            state_mean = np.mean(qpos, axis=0) # 返回一个一维数组，shape(14,)
-            state_norm = np.sqrt(np.mean(qpos**2, axis=0)) # 返回一个一维数组，shape(14,)
-            actions = target_qpos # 返回一个二维数组，shape(CHUNK_SIZE, 14)
+            state_qpos = qpos[step_id:step_id+1] 
+            state_qpos_std = np.std(qpos, axis=0)
+            state_qpos_mean = np.mean(qpos, axis=0)
+            state_qpos_norm = np.sqrt(np.mean(qpos**2, axis=0))
+            
+            state_eef_pose = eef_pose[step_id:step_id+1]
+            state_eef_pose_std = np.std(eef_pose, axis=0)
+            state_eef_pose_mean = np.mean(eef_pose, axis=0)
+            state_eef_pose_norm = np.sqrt(np.mean(eef_pose**2, axis=0))
+
+            state_std = state_qpos_std + state_eef_pose_std # 为后面state_indicator的赋值提供数据
+
+            actions = target_qpos
+
             if actions.shape[0] < self.CHUNK_SIZE:
                 # Pad the actions using the last action
                 # 如果 actions 总的 timestep 小于 CHUNK_SIZE，则用最后一个 action 填充
@@ -201,38 +196,54 @@ class HDF5VLADataset:
             # Fill the state/action into the unified vector 
             # Please refer to configs/state_vec.py for an explanation of each element in the unified vector.
             def fill_in_state(values):
-                # Target indices corresponding to your state space
-                # In this example: 6 joints + 1 gripper for each arm
                 UNI_STATE_INDICES = [
-                    STATE_VEC_IDX_MAPPING[f"left_arm_joint_{i}_pos"] for i in range(6)
-                ] + [
-                    STATE_VEC_IDX_MAPPING["left_gripper_open"]
-                ] + [
                     STATE_VEC_IDX_MAPPING[f"right_arm_joint_{i}_pos"] for i in range(6)
-                ] + [
-                    STATE_VEC_IDX_MAPPING["right_gripper_open"]
                 ]
-                # 把当前数据集里的state统一到我们的128维的状态空间中
                 uni_vec = np.zeros(values.shape[:-1] + (self.STATE_DIM,))
                 uni_vec[..., UNI_STATE_INDICES] = values
                 return uni_vec
-            state = fill_in_state(state)
-            state_indicator = fill_in_state(np.ones_like(state_std))
-            state_std = fill_in_state(state_std)
-            state_mean = fill_in_state(state_mean)
-            state_norm = fill_in_state(state_norm)
-            # If action's format is different from state's,
-            # you may implement fill_in_action()
-            actions = fill_in_state(actions)
             
+            def fill_in_state_eef_pose(values):
+                UNI_STATE_INDICES = [
+                    STATE_VEC_IDX_MAPPING[f"right_eef_angle_{i}"] for i in range(6)
+                ]
+                uni_vec = np.zeros(values.shape[:-1] + (self.STATE_DIM,))
+                uni_vec[..., UNI_STATE_INDICES] = values
+                return uni_vec
+            
+            state_qpos = fill_in_state(state_qpos)
+            state_qpos_std = fill_in_state(state_qpos_std)
+            state_qpos_mean = fill_in_state(state_qpos_mean)
+            state_qpos_norm = fill_in_state(state_qpos_norm)
+
+            state_eef_pose = fill_in_state_eef_pose(state_eef_pose)
+            state_eef_pose_std = fill_in_state_eef_pose(state_eef_pose_std)
+            state_eef_pose_mean = fill_in_state_eef_pose(state_eef_pose_mean)
+            state_eef_pose_norm = fill_in_state_eef_pose(state_eef_pose_norm)
+            
+            state_indicator = fill_in_state(np.ones_like(state_std))
+            # 每个 fill_in_state 生成不同的向量实例，
+            # 将 state_qpos 和 state_eef_pose 拼接起来，生成 state 向量，在一个实例之中
+            state = state_qpos + state_eef_pose
+            state_std = state_qpos_std + state_eef_pose_std
+            state_mean = state_qpos_mean + state_eef_pose_mean
+            state_norm = state_qpos_norm + state_eef_pose_norm
+
+            actions = fill_in_state(actions)
+
             # Parse the images
             # key 是图像类型，如 cam_high、cam_left_wrist、cam_right_wrist
+            # TODO：更改图像部分代码
             def parse_img(key):
                 imgs = []
                 for i in range(max(step_id-self.IMG_HISORY_SIZE+1, 0), step_id+1):
-                    img = f['observations']['images'][key][i]
+                    img = f[key][i]
                     # 解码图像数据为RGB格式
-                    imgs.append(cv2.imdecode(np.frombuffer(img, np.uint8), cv2.IMREAD_COLOR))
+
+                    imgs.append(img)
+                    
+                    # imgs.append(cv2.imdecode(np.frombuffer(img, np.uint8), cv2.IMREAD_COLOR)) 这一句一直没加
+                    # print(f"Image type: {type(imgs)}, shape: {imgs.shape}")  # 打印img的数据格式和维数        
                 # 将图像列表转换为numpy数组
                 imgs = np.stack(imgs)
                 if imgs.shape[0] < self.IMG_HISORY_SIZE:
@@ -241,18 +252,16 @@ class HDF5VLADataset:
                         np.tile(imgs[:1], (self.IMG_HISORY_SIZE-imgs.shape[0], 1, 1, 1)),
                         imgs
                     ], axis=0)
-                return imgs
+                return imgs   
             # `cam_high` is the external camera image
-            cam_high = parse_img('cam_high')
+            cam_high = parse_img('camera_0')
             # For step_id = first_idx - 1, the valid_len should be one
             # 通过掩码区分真实和填充的图像，计算损失和评估时时忽略填充帧
             valid_len = min(step_id - (first_idx - 1) + 1, self.IMG_HISORY_SIZE)
             cam_high_mask = np.array(
                 [False] * (self.IMG_HISORY_SIZE - valid_len) + [True] * valid_len
             )
-            cam_left_wrist = parse_img('cam_left_wrist')
-            cam_left_wrist_mask = cam_high_mask.copy()
-            cam_right_wrist = parse_img('cam_right_wrist')
+            cam_right_wrist = parse_img('camera_1')
             cam_right_wrist_mask = cam_high_mask.copy()
             
             # Return the resulting sample
@@ -269,8 +278,8 @@ class HDF5VLADataset:
                 "state_indicator": state_indicator,
                 "cam_high": cam_high,
                 "cam_high_mask": cam_high_mask,
-                "cam_left_wrist": cam_left_wrist,
-                "cam_left_wrist_mask": cam_left_wrist_mask,
+                # "cam_left_wrist": cam_left_wrist, TODO:添加左手
+                # "cam_left_wrist_mask": cam_left_wrist_mask, TODO:添加左手
                 "cam_right_wrist": cam_right_wrist,
                 "cam_right_wrist_mask": cam_right_wrist_mask
             }
@@ -292,11 +301,12 @@ class HDF5VLADataset:
                 } or None if the episode is invalid.
         """
         with h5py.File(file_path, 'r') as f:
-            qpos = f['observations']['qpos'][:]
-            num_steps = qpos.shape[0]
-            # [Optional] We drop too-short episode
+            num_steps = f['robot_joint'].shape[0]
             if num_steps < 128:
                 return False, None
+
+            qpos = f['robot_joint'][:]
+            eef_pose = f['robot_eef_pose'][:]
             
             # [Optional] We skip the first few still steps
             EPS = 1e-2
@@ -308,37 +318,35 @@ class HDF5VLADataset:
             else:
                 raise ValueError("Found no qpos that exceeds the threshold.")
             
-            # Rescale gripper to [0, 1]
-            qpos = qpos / np.array(
-               [[1, 1, 1, 1, 1, 1, 4.7908, 1, 1, 1, 1, 1, 1, 4.7888]] 
-            )
-            target_qpos = f['action'][:] / np.array(
-               [[1, 1, 1, 1, 1, 1, 11.8997, 1, 1, 1, 1, 1, 1, 13.9231]] 
-            )
+            target_qpos = f['action'][:]
             
-            # Parse the state and action
-            state = qpos[first_idx-1:]
+            # Parse the state and action (state1: qpos, state2: eef_pose, action: target_qpos)
+            state_qpos = qpos[first_idx-1:]
+            state_eef_pose = eef_pose[first_idx-1:]
             action = target_qpos[first_idx-1:]
             
             # Fill the state/action into the unified vector
             def fill_in_state(values):
-                # Target indices corresponding to your state space
-                # In this example: 6 joints + 1 gripper for each arm
                 UNI_STATE_INDICES = [
-                    STATE_VEC_IDX_MAPPING[f"left_arm_joint_{i}_pos"] for i in range(6)
-                ] + [
-                    STATE_VEC_IDX_MAPPING["left_gripper_open"]
-                ] + [
                     STATE_VEC_IDX_MAPPING[f"right_arm_joint_{i}_pos"] for i in range(6)
-                ] + [
-                    STATE_VEC_IDX_MAPPING["right_gripper_open"]
                 ]
                 uni_vec = np.zeros(values.shape[:-1] + (self.STATE_DIM,))
                 uni_vec[..., UNI_STATE_INDICES] = values
                 return uni_vec
-            state = fill_in_state(state)
-            action = fill_in_state(action)
             
+            def fill_in_state_eef_pose(values):
+                UNI_STATE_INDICES = [
+                    STATE_VEC_IDX_MAPPING[f"right_eef_angle_{i}"] for i in range(6)
+                ]
+                uni_vec = np.zeros(values.shape[:-1] + (self.STATE_DIM,))
+                uni_vec[..., UNI_STATE_INDICES] = values
+                return uni_vec
+            
+            state_qpos = fill_in_state(state_qpos)
+            state_eef_pose = fill_in_state_eef_pose(state_eef_pose)
+            state = state_qpos + state_eef_pose
+
+            action = fill_in_state(action)
             # Return the resulting sample
             return True, {
                 "state": state,

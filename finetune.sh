@@ -1,7 +1,7 @@
 # NCCL (NVIDIA Collective Communications Library) 相关配置
 export NCCL_IB_HCA=mlx5_0:1,mlx5_1:1,mlx5_2:1,mlx5_3:1,mlx5_4:1,mlx5_7:1,mlx5_8:1,mlx5_9:1  # InfiniBand 网卡配置
 export NCCL_IB_DISABLE=0                   # 启用 InfiniBand
-export NCCL_SOCKET_IFNAME=bond0            # 网络接口名称
+export NCCL_SOCKET_IFNAME=ens64f1            # 网络接口名称
 export NCCL_DEBUG=INFO                     # 调试信息级别
 export NCCL_NVLS_ENABLE=0                  # NVIDIA Launch Service 设置
 
@@ -13,9 +13,9 @@ export LDFLAGS="-L/usr/lib/x86_64-linux-gnu"
 #   - 如果没有安装 CUTLASS 库，可以直接删除脚本中的 cutlass_path 配置行。 
 #   - 删除后可能会产生一个 warning，但不会对主要流程产生影响。
 # CUTLASS (CUDA Templates for Linear Algebra Subroutines) 是 NVIDIA 开发的一个用于 CUDA 的高性能线性代数模板库
-export CUTLASS_PATH="/path/to/cutlass"
+# export CUTLASS_PATH="/path/to/cutlass"
 
-export WANDB_PROJECT="robotics_diffusion_transformer"
+export WANDB_PROJECT="rdt-pusht"
 
 if [ ! -d "$OUTPUT_DIR" ]; then
     mkdir "$OUTPUT_DIR"
@@ -49,7 +49,8 @@ deepspeed --hostfile=hostfile.txt main.py \
     --dataset_type="finetune" \
     --state_noise_snr=40 \
     --load_from_hdf5 \
-    --report_to=wandb
+    --report_to=wandb \
+    --precomp_lang_embed \
 
     # Use this to resume training from some previous checkpoint
     # --resume_from_checkpoint="checkpoint-36000" \
