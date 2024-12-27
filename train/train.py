@@ -425,7 +425,7 @@ def train(args, logger):
                 state_elem_mask = batch["state_elem_mask"].to(dtype=weight_dtype)
                 ctrl_freqs = batch["ctrl_freqs"]
 
-                print(images.shape)    
+                # print(images.shape)    
                 with torch.no_grad():
                     batch_size, _, C, H, W = images.shape
                     image_embeds = vision_encoder(images.reshape(-1, C, H, W)).detach()

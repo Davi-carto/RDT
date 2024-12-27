@@ -29,7 +29,8 @@ fi
 #     --deepspeed="./configs/zero2.json" \
 #     ...
 
-deepspeed --hostfile=hostfile.txt main.py \
+# 修改指定的CUDA
+deepspeed --include localhost:0,1,2,3,4,5,6,7 main.py \
     --deepspeed="./configs/zero2.json" \
     --pretrained_model_name_or_path="rdt-1b" \
     --pretrained_text_encoder_name_or_path=$TEXT_ENCODER_NAME \
